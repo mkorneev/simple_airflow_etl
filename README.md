@@ -20,10 +20,10 @@ ansible-playbook roles/start-etl.yml
 
 ### How to check the result? ###
 
-##### Hourly results table ##### 
+##### Hourly results table
 <http://HOST:8080/admin/queryview/?conn_id=sqlite_default&sql=SELECT+*+FROM+hourly+ORDER+BY+hour+DESC>
 
-##### Raw data table ##### 
+##### Raw data table
 <http://HOST:8080/admin/queryview/?conn_id=sqlite_default&sql=SELECT+*+FROM+data+ORDER+BY+time+DESC>
 
 ### Who do I talk to? ###
