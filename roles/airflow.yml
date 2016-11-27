@@ -1,0 +1,61 @@
+---
+  - name: Install airflow
+    hosts: airflow
+    gather_facts: no
+
+    pre_tasks:
+      - name: 'Update repositories cache'
+        raw: sudo apt-get update
+      - name: 'install python2'
+        raw: sudo apt-get -y install python-simplejson
+
+    tasks:
+      - block:
+        - name: Set MySQL root password before installing
+          debconf: name='mysql-server' question='mysql-server/root_password' value='{{mysql_root_password | quote}}' vtype='password'
+
+        - name: Confirm MySQL root password before installing
+          debconf: name='mysql-server' question='mysql-server/root_password_again' value='{{mysql_root_password | quote}}' vtype='password'
+
+        become: true
+        become_user: root
+        become_method: sudo
+
+      - name: Update repositories cache and install some packages
+        become: true
+        become_user: root
+        become_method: sudo
+        apt:
+          name: "{{ item }}"
+          state: installed
+          update_cache: yes
+          cache_valid_time: 86400 # 1 day
+        with_items:
+          - python-pip
+          - htop
+          - tmux
+          - mysql-server
+          - python-mysqldb
+          - daemon
+
+      - name: Install python packages
+        pip:
+          name: airflow
+          state: present
+        with_items:
+          - airflow[mysql]
+
+      - name: Add airflow MySQL user
+        shell:
+          cmd: |
+            mysql -uroot -proot \
+            -e "CREATE DATABASE airflow
+                DEFAULT CHARACTER SET utf8
+                DEFAULT COLLATE utf8_general_ci;
+
+                GRANT ALL PRIVILEGES
+                ON airflow.*
+                TO 'airflow'@'localhost'
+                IDENTIFIED BY 'airflow';
+
+                FLUSH PRIVILEGES;"

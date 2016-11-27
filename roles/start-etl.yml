@@ -1,0 +1,59 @@
+---
+  - name: Start simple ETL
+    hosts: airflow
+
+    tasks:
+      - name: Init airflow database
+        shell: airflow initdb
+        args:
+          creates: /home/ubuntu/airflow/airflow.cfg
+        environment:
+          PATH: "{{ ansible_env.PATH }}:/home/ubuntu/.local/bin"
+
+
+      - name: Disable example tasks
+        lineinfile:
+          dest: /home/ubuntu/airflow/airflow.cfg
+          regexp: "^load_examples = "
+          line: "load_examples = False"
+
+      - name: Configure using mysql database
+        lineinfile:
+          dest: /home/ubuntu/airflow/airflow.cfg
+          regexp: "^sql_alchemy_conn = "
+          line: "sql_alchemy_conn = mysql://airflow:airflow@localhost/airflow"
+
+      - name: Configure using LocalExecutor
+        lineinfile:
+          dest: /home/ubuntu/airflow/airflow.cfg
+          regexp: "^executor = "
+          line: "executor = LocalExecutor"
+
+      - name: Lower parallelism for t2.micro instance
+        lineinfile:
+          dest: /home/ubuntu/airflow/airflow.cfg
+          regexp: "^parallelism = "
+          line: "parallelism = 2"
+
+      - name: Copy dags to remote server
+        copy: src=../dags dest=/home/ubuntu/airflow
+
+      - block:
+        - name: Init airflow MySQL database
+          shell: airflow initdb
+
+        - name: Start airflow server
+          shell: daemon -n airflow.webserver -- airflow webserver
+
+        - name: Start airflow scheduler
+          shell: daemon -n airflow.scheduler -o /home/ubuntu/airflow/logs/scheduler.log -- airflow scheduler
+
+        - name: Unpause DAGs
+          shell:
+            cmd: |
+              airflow unpause simple_etl_create_tables;
+              airflow unpause simple_etl_store_recording;
+              airflow unpause simple_etl_calc_hourly_totals
+        environment:
+          PATH: "{{ ansible_env.PATH }}:/home/ubuntu/.local/bin"
+
